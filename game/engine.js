@@ -182,7 +182,7 @@ export class GameEngine{
  setHint(hint){this.hint=hint;}
  serialize(){return{version:VERSION,seed:this.seed,resources:{...this.resources},upgrades:{...this.upgrades},buildings:Object.fromEntries(Object.entries(this.buildings).map(([id,v])=>[id,{clock:v.clock}])),stats:{...this.stats},questIndex:this.questIndex,level:this.level,xp:this.xp,settings:{...this.settings},tiles:[...this.tiles.values()].map(t=>[t.x,t.z]),player:{x:this.player.x,z:this.player.z,hp:this.player.hp},entities:this.entities.filter(e=>e.dead||e.hp<e.maxHp).map(e=>({id:e.id,hp:e.hp,dead:e.dead})),loot:this.loot.map(l=>({...l})),savedAt:Date.now()};}
  save(){if(this.resetting)return;if(!this.storage)return true;try{this.storage.setItem(SAVE_KEY,JSON.stringify(this.serialize()));return true;}catch{if(!this.saveProblem){this.saveProblem=true;this.emit('save-error',{});}return false;}}
- load(){if(!this.storage)return;try{const raw=this.storage.getItem(SAVE_KEY);if(!raw)return;this.restore(JSON.parse(raw));}catch{this.saveProblem=true;}}
+ load(){if(!this.storage)return;try{const raw=this.storage.getItem(SAVE_KEY);if(!raw)return;if(raw.length>4*1024*1024)throw Error('Save too large');this.restore(JSON.parse(raw));}catch{this.saveProblem=true;}}
  restore(data){
   if(!data||data.version!==VERSION||!Array.isArray(data.tiles)||data.tiles.length<4||data.tiles.length>10000)throw Error('Invalid save');
   const number=(v,min,max,fallback)=>typeof v==='number'&&Number.isFinite(v)?clamp(v,min,max):fallback;
