@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#dceefa" />
+  <meta name="description" content="合金とコアを売ってお金を稼ぎ、拠点を大きく育てよう。PC・スマホ対応。" />
+  <title>VERDANT RELAY — 機械遺跡を再起動する</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23183c36'/%3E%3Cpath d='M28 24h8v29h-8z' fill='%23ffc36a'/%3E%3Cpath d='M32 7 13 35h10l-7 11h32l-7-11h10z' fill='%238fde85'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main id="game" aria-label="VERDANT RELAY 開拓ゲーム">
+    <canvas id="world" aria-label="機械遺跡と拠点。WASD・矢印キー、画面のドラッグまたはタップで移動できます。" tabindex="0"></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" data-icon="tree"></div><div><strong>VERDANT <span>RELAY</span></strong><small>機械遺跡を再起動する</small></div></div>
+      <div class="resources" aria-label="所持資源"><div class="resource cash"><span data-icon="cash"></span><div><small>お金</small><strong id="cash-count">0</strong></div><b id="cash-delta"></b></div>
+        <div class="resource ore"><span data-icon="stone"></span><div><small>金鉱石</small><strong id="ore-count">0</strong></div><b id="ore-delta"></b></div><div class="resource wood" title="合金"><span data-icon="wood"></span><div><small>合金</small><strong id="wood-count">0</strong></div><b id="wood-delta"></b></div>
+        <div class="resource meat" title="食料"><span data-icon="meat"></span><div><small>コア</small><strong id="meat-count">0</strong></div><b id="meat-delta"></b></div>
+        <div class="resource stone" hidden title="石材"><span data-icon="stone"></span><div><small>石材</small><strong id="stone-count">0</strong></div><b id="stone-delta"></b></div>
+      </div>
+      <div class="top-actions"><button class="icon-button" id="sound-button" aria-label="音をオンにする" title="音をオンにする" data-icon="muted"></button><button class="icon-button" id="pause-button" aria-label="一時停止" title="一時停止" data-icon="pause"></button></div>
+    </header>
+    <button id="quest-toggle" class="quest-toggle" aria-expanded="false" aria-controls="quest-details">目標</button><section id="quest-details" class="quest-card" aria-label="次の目標">
+      <div class="eyebrow"><span class="quest-spark" data-icon="spark"></span>次の目標<span id="quest-index">01</span></div>
+      <h1 id="quest-title">合金を10個集めよう</h1>
+      <p id="quest-description">残骸に近づくと、自動で解体。</p>
+      <div class="quest-bottom"><div class="quest-progress"><div id="quest-fill"></div></div><span id="quest-count">0 / 10</span></div>
+      <button id="quest-claim" class="quest-claim" hidden>達成報酬を受け取る <span data-icon="check"></span></button>
+    </section>
+    <button id="map-button" class="map-card" aria-label="開拓マップを開く">
+      <canvas id="minimap" width="160" height="108" aria-hidden="true"></canvas>
+      <div><span data-icon="flag"></span><strong id="tile-count">4</strong><span>拠点床</span><span class="map-expand" data-icon="expand"></span></div>
+    </button>
+    <div class="location"><span id="biome-label">はじまりの緑の遺跡</span><span class="location-line"></span><span id="rank-label">探索機 Lv.1</span></div>
+    <div id="combo-badge" class="combo-badge" hidden><strong id="combo-number">2</strong><span id="combo-label">連続撃破</span><div><i id="combo-timer"></i></div></div>
+    <button id="power-button" class="power-button" aria-label="レーザー掃射攻撃。周囲をまとめて攻撃。スペースキーでも発動。"><span data-icon="swing"></span><strong id="power-label">レーザー掃射</strong><small id="power-hint">SPACE</small></button>
+    <div class="growth-actions"><button id="garrison-button">兵舎へ<span>兵を雇用</span></button><button id="mine-button">金鉱へ<span>採掘と運搬</span></button></div><button id="market-button" class="market-button">売り場へ <span>納品 → 客が購入</span></button><div id="context-hint" class="context-hint" hidden></div>
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+    <div id="joystick" class="joystick" aria-hidden="true"><div id="joystick-knob"></div></div>
+    <footer class="bottom-hud">
+      <div class="player-card"><div class="player-level" id="player-level">1</div><div class="player-bars"><div class="player-label"><strong>探索機</strong><span id="health-text">100 / 100</span></div><div class="health-track"><div id="health-fill"></div></div><div class="xp-track"><div id="xp-fill"></div></div></div></div>
+      <div class="action-bar"><button class="action-button primary" id="upgrade-button"><span data-icon="axe"></span><span>工房へ<small id="axe-level">ビーム Lv.1</small></span><kbd>B</kbd><i id="upgrade-dot" hidden></i></button><button class="action-button" id="build-button"><span data-icon="home"></span><span>施設・兵<small id="building-count">0 / 4</small></span></button></div>
+      <div class="control-hint"><span class="keys"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span><span>移動するだけで<br><strong>自動で解体・攻撃</strong></span><button id="help-button" class="help-button" aria-label="遊び方">?</button></div>
+    </footer>
+    <div class="mobile-hint">画面をドラッグして移動 · 近づくと自動照射</div>
+    <div id="first-tip" class="first-tip"><span data-icon="axe"></span><div><strong>合金とコアを売って、拠点を育てよう。</strong><span class="desktop-copy">WASD・矢印キー / 行きたい場所をクリック</span><span class="touch-copy">ドラッグで移動・レーザー掃射で一気に解体。</span></div><button id="dismiss-tip" aria-label="案内を閉じる" data-icon="close"></button></div>
+    <div id="load-error" class="load-error" hidden>ゲームの読み込みに失敗しました。ページを再読み込みしてください。</div>
+  </main>
+  <dialog id="panel"><div class="dialog-heading"><div><div class="eyebrow" id="panel-eyebrow"></div><h2 id="panel-title"></h2></div><button id="close-panel" class="icon-button dark" aria-label="閉じる" data-icon="close"></button></div><div id="panel-body"></div></dialog>
+  <script type="module" src="./game/main.js"></script>
+</body>
+</html>

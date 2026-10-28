@@ -1,0 +1,8 @@
+import * as T from '../vendor/three.module.min.js';
+import {box,ell,cyl,shape,mat,explorer} from './models-3d.js';
+const tailGeometry=new T.ConeGeometry(.17,.27,3),finGeometry=new T.ConeGeometry(.13,.18,3);
+export function fishModel(){const g=new T.Group();ell(g,'#7ddaf2',[0,0,0],[.14,.13,.38]);ell(g,'#c6f2f4',[0,-.035,.07],[.125,.085,.28]);const tail=shape(g,tailGeometry,'#3799c5',[0,0,-.43]);tail.rotation.x=-Math.PI/2;tail.rotation.z=Math.PI/2;for(const x of[-.09,.09])ell(g,'#1c4059',[x,.045,.24],[.027,.027,.027]);const fin=shape(g,finGeometry,'#4ba9ca',[0,.15,-.06]);fin.scale.z=.5;g.userData.tail=tail;return g;}
+export function fishingRod(){const g=new T.Group();const pole=cyl(g,'#9e7146',[0,.7,0],[.027,1.5,.027]);pole.rotation.x=.65;const line=box(g,'#edfaff',[0,.62,.76],[.01,1.05,.01]);ell(g,'#ef7557',[0,.09,.76],[.07,.08,.07]);return g;}
+export function hunterModel(){const g=explorer(true,1);g.userData.axe.visible=false;const bow=new T.Mesh(new T.TorusGeometry(.33,.025,6,18,Math.PI),mat('#785330'));bow.rotation.z=-Math.PI/2;bow.position.set(.42,.93,.34);g.add(bow);box(g,'#e9e2c8',[.42,.93,.34],[.012,.64,.012]);g.userData.bow=bow;return g;}
+export function forge(){const g=new T.Group();box(g,'#354f60',[0,.4,0],[.85,.8,.6]);box(g,'#a0b9c2',[0,.84,0],[1,.12,.75]);const screen=box(g,'#7df2d3',[0,1.07,-.12],[.6,.35,.045]);screen.rotation.x=-.3;box(g,'#e8be66',[.3,.88,.2],[.1,.04,.16]);return g;}
+export function crate(){const g=new T.Group();box(g,'#b18b57',[0,.06,0],[1.5,.12,1.4]);for(const x of[-.72,.72])box(g,'#dfb676',[x,.16,0],[.1,.2,1.4]);for(const z of[-.67,.67])box(g,'#dfb676',[0,.16,z],[1.5,.2,.1]);return g;}
