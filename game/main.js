@@ -1,4 +1,4 @@
-import{SalvageEngine as GameEngine}from'./salvage-engine.js';
+import{CombatEngine as GameEngine}from'./combat-engine.js';
 import{BeamRenderer as WorldRenderer}from'./beam-renderer.js';
 import{GameInput}from'./input.js';
 import{GrowthUI as GameUI}from'./growth-ui.js';

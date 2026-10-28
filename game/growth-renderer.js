@@ -31,5 +31,5 @@ export class GrowthRenderer extends CampRenderer {
  const n=e.trade.stock.ore;if(n!==this.oreDisplayCount){this.oreDisplayCount=n;this.oreDisplay.clear();for(let i=0;i<Math.min(18,n);i++)goldOre(this.oreDisplay,[(i%3-1)*.22,.1+Math.floor(i/3)*.17,0]);}this.oreDisplay.position.set(MARKET.x,.87,MARKET.z);
  for(const c of e.customers){if(c.carrying?.resource!=='ore')continue;const m=this.customerModels.get(c.id);if(m&&!m.userData.goldHandled){m.userData.orderGoods.clear();for(let i=0;i<c.carrying.amount;i++)goldOre(m.userData.orderGoods,[(i-1)*.19,.1,0]);m.userData.goldHandled=true;}}
  }
- drawOverlay(){Renderer3D.prototype.drawOverlay.call(this);if(this.width<=760||matchMedia('(pointer: coarse)').matches)return;const e=this.engine,p=e.player;for(const s of [...e.growth.towers,...e.growth.mines])if(distance(s,p)<7)this.label(s.x,s.z,s.id.startsWith('mine')?1.7:4,`${s.id.startsWith('mine')?'金鉱':'塔'} Lv.${s.level} · 運搬 ${s.cart.cargo}/${e.freightCapacity(s)}`,'#715738e8');for(const h of e.hunters)if(distance(h,p)<6)this.label(h.x,h.z,2.15,`${SOLDIER_TYPES[h.kind].name} · ${h.state}`,'#375867dd');const first=e.customers.find(c=>c.state==='waiting');if(first&&distance(first,p)<8)this.label(first.x,first.z,2.1,first.order?`${RESOURCE_NAMES[first.order]}を購入中`:'商品を待っています','#416a84ee');}
+ drawOverlay(){Renderer3D.prototype.drawOverlay.call(this);}
 }
