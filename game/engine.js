@@ -164,7 +164,7 @@ export class GameEngine{
    if((l.age>.28&&d<.4)||l.age>45){this.grant({[l.resource]:l.amount},{collect:true});this.loot.splice(i,1);}
   }
  }
- updateEffects(dt){for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;if(e.life<=0){this.effects.splice(i,1);continue;}if(e.type==='particle'){e.x+=e.vx*dt;e.z+=e.vz*dt;e.y+=e.vy*dt;e.vy-=10*dt;if(e.y<.03){e.y=.03;e.vy=-e.vy*.25;}}else e.y+=dt*.8;}if(this.effects.length>200)this.effects.splice(0,this.effects.length-200);}
+ updateEffects(dt){for(let i=this.effects.length-1;i>=0;i--){const e=this.effects[i];e.life-=dt;if(e.life<=0){this.effects.splice(i,1);continue;}if(e.type==='particle'){e.x+=e.vx*dt;e.z+=e.vz*dt;e.y+=e.vy*dt;e.vy-=10*dt;if(e.y<.03){e.y=.03;e.vy=-e.vy*.25;}}else if(e.type==='text')e.y+=dt*.8;}if(this.effects.length>200)this.effects.splice(0,this.effects.length-200);}
  updateBuildings(dt,near){
   for(const [id,b]of Object.entries(this.buildings)){const def=BUILDINGS[id];b.clock+=dt;if(b.clock>=def.interval){b.clock%=def.interval;if(Object.keys(def.yield).length){this.grant(def.yield,{collect:true});this.floating(def.x,def.z,`+${Object.values(def.yield)[0]}`,'#e9ffc0',2.4);}}}
   if(this.buildings.watchtower){this.towerClock-=dt;if(this.towerClock<=0){const bear=near.filter(e=>e.type==='bear'&&!e.dead&&e.aggro&&distance(e,this.player)<5).sort((a,b)=>distance(a,this.player)-distance(b,this.player))[0];if(bear){this.hitEntity(bear,Math.max(2,Math.floor(this.attack*.75)));this.towerClock=2;this.emit('tower',{});}}}

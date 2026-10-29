@@ -1,6 +1,7 @@
 import {CombatEngine} from './combat-engine.js';
 import {BUILDINGS,distance,clamp} from './config.js';
 import {BARRACKS} from './growth-content.js';
+import {MACHINE_ATTACKS,inAttackArea} from './enemy-attacks.js';
 
 export const WEAPONS={
  beam:{name:'単体ビーム砲',cost:240,range:13,interval:.65,damage:18,description:'単体を即時照射。安定した連続火力。'},
@@ -9,10 +10,10 @@ export const WEAPONS={
 };
 const health=(v,max)=>Number.isFinite(v)?clamp(v,0,max):max;
 export class SiegeEngine extends CombatEngine{
- constructor(o={}){super(o);this.durability||={};this.deathCaches||=[];this.missiles=[];this.cacheSerial||=0;}
- machineKind(e){return e.enemyKind==='wolf'?'scout':e.enemyKind==='boar'?'armor':e.enemyKind==='yeti'?'artillery':['scout','armor','artillery'][Math.floor((e.seed||0)*3)%3];}
+ constructor(o={}){super(o);this.durability||={};this.deathCaches||=[];this.missiles=[];this.enemyShells=[];this.cacheSerial||=0;}
+ machineKind(e){return e.boss||e.enemyKind==='yeti'?'guardian':e.enemyKind==='wolf'?'scout':e.enemyKind==='boar'?'armor':['scout','armor','artillery'][Math.floor((e.seed||0)*3)%3];}
  assignMonsters(){super.assignMonsters();for(const e of this.entities)if(e.type==='bear')e.machineKind=this.machineKind(e);}
- hitEntity(e,damage){const result=super.hitEntity(e,e.type==='bear'&&this.machineKind(e)==='armor'?damage*.65:damage);if(e.dead){e.siegeIntent=null;e.slowUntil=0;}return result;}
+ hitEntity(e,damage){const result=super.hitEntity(e,e.type==='bear'&&['armor','guardian'].includes(this.machineKind(e))?damage*.65:damage);if(e.dead){e.siegeIntent=null;e.enemyAttack=null;e.slowUntil=0;}return result;}
  servicePads(p){return [[0,1.15],[0,-1.8],[-1.8,0],[1.8,0],[0,1.8],[-1.8,-1.8],[1.8,-1.8],[-1.8,1.8],[1.8,1.8],[0,0]].map(([x,z])=>({x:p.x+x,z:p.z+z})).filter(q=>this.canTravel(q,q,this.player));}
  facilities(){return[
   ...Object.entries(this.buildings).map(([id,state])=>({id:'building:'+id,name:BUILDINGS[id].name,...BUILDINGS[id],state,max:180})),
@@ -44,14 +45,29 @@ export class SiegeEngine extends CombatEngine{
  }
  defenseHit(e,damage,t){this.towerHit=true;this.activeTower=t;try{this.hitEntity(e,damage);}finally{this.towerHit=false;this.activeTower=null;}}
  move(e,dx,dz,collision=true){let ratio=1;if(e.type==='bear'){ratio=this.machineKind(e)==='scout'?1.3:this.machineKind(e)==='armor'?.75:.8;if(e.slowUntil>this.time)ratio*=.45;}return super.move(e,dx*ratio,dz*ratio,collision);}
- updateEnemyAI(e,dt){if(!this.started)return true;const def=this.enemyDefinition(e),inside=this.insideBase(e.x,e.z);e.machineKind=e.enemyKind==='wolf'?'scout':e.enemyKind==='boar'?'armor':e.enemyKind==='yeti'?'artillery':['scout','armor','artillery'][Math.floor((e.seed||0)*3)%3];
-  if(e.siegeIntent){const a=e.siegeIntent;e.attackCooldown=Math.max(0,(e.attackCooldown||0)-dt);a.time-=dt;if(a.time<=0){if(a.facility){const f=this.facilities().find(f=>f.id===a.facility);if(f&&distance(f,a)<1&&distance(e,f)<(e.machineKind==='artillery'?12:2))this.damageFacility(f.id,def.damage*(e.machineKind==='armor'?1.7:1));}else if(distance(this.player,a)<1.6&&this.canTravel(e,this.player,e))this.hurtPlayer(e,1.25);e.siegeIntent=null;e.intent=null;}return true;}
-  const facilities=this.facilities().filter(f=>this.facilityHealth(f)>0).sort((a,b)=>distance(e,a)-distance(e,b));const target=facilities[0],ranged=e.machineKind==='artillery',range=ranged?11:1.65;
-  // Raiders inside the perimeter keep attacking facilities even if the player retreats.
-  if(target&&(inside||e.raider&&ranged&&this.canTravel(e,target,{type:'projectile'}))){e.aggro=true;e.attackCooldown=Math.max(0,(e.attackCooldown||0)-dt);e.angle=Math.atan2(target.x-e.x,target.z-e.z);if(distance(e,target)<=range){if(e.attackCooldown<=0){e.siegeIntent={kind:'siege',facility:target.id,x:target.x,z:target.z,time:ranged?1.3:.7};e.intent=e.siegeIntent;e.attackCooldown=ranged?3.2:1.8;}}else this.follow(e,target,dt,def.speed*(e.machineKind==='scout'?1.8:e.machineKind==='armor'?.8:1));return true;}
-  if(ranged&&distance(e,this.player)<11&&distance(e,this.player)>3&&this.canTravel(e,this.player,e)){e.aggro=true;e.attackCooldown=Math.max(0,(e.attackCooldown||0)-dt);if(e.attackCooldown<=0){e.siegeIntent={kind:'shell',x:this.player.x,z:this.player.z,time:1.3};e.intent=e.siegeIntent;e.attackCooldown=3.2;}return true;}
-  return super.updateEnemyAI(e,dt);
+ beginMachineAttack(e,target,{facility,gate}={}){const kind=this.machineKind(e),def=MACHINE_ATTACKS[kind],ranged=def.move==='shell';e.angle=Math.atan2(target.x-e.x,target.z-e.z);e.aggro=true;e.moving=false;
+  const a={...def,kind:def.move,elapsed:0,time:def.windup,angle:e.angle,x:ranged?target.x:e.x,z:ranged?target.z:e.z,from:{x:e.x,z:e.z},facility,gate,fired:false};e.enemyAttack=a;e.intent=a;e.windup=a.windup;e.attackCooldown=a.windup+a.active+a.recovery+.4;
  }
+ applyMachineDamage(from,amount){const p=this.player;if(p.invincible>0||!this.canTravel(from,p,{type:'projectile'}))return;p.hp=Math.max(0,p.hp-amount);p.invincible=.65;p.hurt=.3;p.lastCombat=this.time;this.emit('damage',{amount});this.floating(p.x,p.z,'−'+amount,'#ffad91');}
+ resolveMachineAttack(e,a){const damage=Math.round(this.enemyDefinition(e).damage*a.damage);if(a.move==='shell'){this.enemyShells||=[];this.enemyShells.push({x:a.x,z:a.z,from:{...a.from},age:0,duration:.9,radius:a.radius,damage,facility:a.facility,gate:a.gate});this.emit('enemy-shot',{x:e.x,z:e.z});return;}
+  this.effects.push({type:'enemy-impact',move:a.move,x:a.x,z:a.z,angle:a.angle,radius:a.radius,life:.5,total:.5});this.burst(a.x,a.z,'#e59149',a.move==='slam'?18:7);
+  if(a.gate){const g=this.gatesNow().find(g=>g.id===a.gate);if(g&&inAttackArea(a,g)){g.hp=Math.max(0,g.hp-(a.move==='drill'?30:a.move==='slam'?36:18));g.lastHit=this.time;if(g.hp===0){g.breach=10;e.route=[];}}}
+  else if(a.facility){const f=this.facilities().find(f=>f.id===a.facility);if(f&&inAttackArea(a,f)&&this.canTravel(a.from,f,{type:'projectile'}))this.damageFacility(f.id,damage);}
+  if(inAttackArea(a,this.player))this.applyMachineDamage(a.from,damage);
+ }
+ updateMachineAttack(e,dt){const a=e.enemyAttack;a.elapsed+=dt;a.time=Math.max(0,a.windup-a.elapsed);e.windup=a.time;e.attackCooldown=Math.max(0,e.attackCooldown-dt);if(a.elapsed>=a.windup){e.intent=null;if(!a.fired){a.fired=true;this.resolveMachineAttack(e,a);}}if(a.elapsed>=a.windup+a.active+a.recovery){e.enemyAttack=null;e.windup=0;}return true;}
+ updateEnemyAI(e,dt){if(!this.started)return true;e.machineKind=this.machineKind(e);if(e.enemyAttack)return this.updateMachineAttack(e,dt);
+  // Preserve committed charges and their original collision/slow behavior.
+  if(e.intent||e.dash){const result=super.updateEnemyAI(e,dt);if(e.intent?.kind==='gate'){const g=this.gatesNow().find(g=>g.id===e.intent.gate);if(g)this.beginMachineAttack(e,g,{gate:g.id});}return result;}
+  const def=this.enemyDefinition(e),attack=MACHINE_ATTACKS[e.machineKind],inside=this.insideBase(e.x,e.z),ranged=e.machineKind==='artillery';
+  const target=this.facilities().filter(f=>this.facilityHealth(f)>0).sort((a,b)=>distance(e,a)-distance(e,b))[0];
+  if(target&&(inside||e.raider&&ranged&&this.canTravel(e,target,{type:'projectile'}))){e.aggro=true;e.attackCooldown=Math.max(0,(e.attackCooldown||0)-dt);e.angle=Math.atan2(target.x-e.x,target.z-e.z);if(distance(e,target)<=attack.range){e.moving=false;if(e.attackCooldown<=0)this.beginMachineAttack(e,target,{facility:target.id});}else this.follow(e,target,dt,def.speed);return true;}
+  const d=distance(e,this.player),visible=this.canTravel(e,this.player,e),engaged=d<12&&(e.aggro||e.raider||!this.insideBase(this.player.x,this.player.z));
+  if(visible&&engaged&&d<=attack.range){e.aggro=true;e.attackCooldown=Math.max(0,(e.attackCooldown||0)-dt);if(e.attackCooldown<=0){this.beginMachineAttack(e,this.player);return true;}if(d<=attack.range*.8){e.moving=false;return true;}}
+  if(visible&&engaged&&['scout','armor'].includes(e.machineKind)&&d>2.5&&d<5.5&&(e.attackCooldown||0)<=0){e.intent={kind:'charge',x:this.player.x,z:this.player.z,time:.65};e.windup=.65;e.attackCooldown=3.2;return true;}
+  const result=super.updateEnemyAI(e,dt);if(e.intent?.kind==='gate'){const g=this.gatesNow().find(g=>g.id===e.intent.gate);if(g)this.beginMachineAttack(e,g,{gate:g.id});}return result;
+ }
+ update(dt,input){const before=this.time;super.update(dt,input);const elapsed=this.time-before;if(!elapsed||!this.started)return;for(let i=(this.enemyShells?.length||0)-1;i>=0;i--){const a=this.enemyShells[i];a.age+=elapsed;if(a.age<a.duration)continue;this.effects.push({type:'enemy-impact',move:'shell',x:a.x,z:a.z,radius:a.radius,life:.5,total:.5});this.burst(a.x,a.z,'#ff8d43',16);if(distance(a,this.player)<=a.radius)this.applyMachineDamage(a,a.damage);if(a.facility){const f=this.facilities().find(f=>f.id===a.facility);if(f&&distance(a,f)<=a.radius)this.damageFacility(f.id,a.damage);}if(a.gate){const g=this.gatesNow().find(g=>g.id===a.gate);if(g&&distance(a,g)<=a.radius){g.hp=Math.max(0,g.hp-24);g.lastHit=this.time;if(!g.hp)g.breach=10;}}this.enemyShells.splice(i,1);}}
  serialize(){const d=super.serialize();return{...d,siege:{version:1,durability:{...this.durability},weapons:Object.fromEntries((this.growth?.towers||[]).filter(t=>WEAPONS[t.weapon]).map(t=>[t.id,t.weapon])),caches:(this.deathCaches||[]).map(c=>({...c,resources:{...c.resources}}))}};}
- restore(d){super.restore(d);this.durability={};for(const f of this.facilities())this.durability[f.id]=health(d.siege?.durability?.[f.id],f.max);for(const t of this.growth?.towers||[]){const w=d.siege?.weapons?.[t.id];if(Object.hasOwn(WEAPONS,w))t.weapon=w;}this.deathCaches=(Array.isArray(d.siege?.caches)?d.siege.caches:[]).filter(c=>c&&Number.isFinite(c.x)&&Number.isFinite(c.z)&&this.isLand(c.x,c.z)).map((c,i)=>({id:i+1,x:c.x,z:c.z,resources:Object.fromEntries(['wood','meat','stone','ore'].map(r=>[r,Number.isFinite(c.resources?.[r])?clamp(Math.floor(c.resources[r]),0,1e12):0]))}));this.cacheSerial=this.deathCaches.length;this.missiles=[];}
+ restore(d){super.restore(d);this.durability={};for(const f of this.facilities())this.durability[f.id]=health(d.siege?.durability?.[f.id],f.max);for(const t of this.growth?.towers||[]){const w=d.siege?.weapons?.[t.id];if(Object.hasOwn(WEAPONS,w))t.weapon=w;}this.deathCaches=(Array.isArray(d.siege?.caches)?d.siege.caches:[]).filter(c=>c&&Number.isFinite(c.x)&&Number.isFinite(c.z)&&this.isLand(c.x,c.z)).map((c,i)=>({id:i+1,x:c.x,z:c.z,resources:Object.fromEntries(['wood','meat','stone','ore'].map(r=>[r,Number.isFinite(c.resources?.[r])?clamp(Math.floor(c.resources[r]),0,1e12):0]))}));this.cacheSerial=this.deathCaches.length;this.missiles=[];this.enemyShells=[];}
 }
