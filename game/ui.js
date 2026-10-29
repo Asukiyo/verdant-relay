@@ -22,7 +22,7 @@ export class GameUI{
   engine.on('build',({id})=>this.toast(`${BUILDINGS[id].name}が完成！`,'success'));
   engine.on('quest',({reward})=>this.toast(`目標達成！ ${Object.entries(reward).map(([r,n])=>`${RESOURCE_NAMES[r]} +${n}`).join('  ')}`,'success'));
   engine.on('level',lv=>this.toast(`探索機 Lv.${lv} にアップ！`,'success'));
-  engine.on('downed',()=>this.toast('体力切れ。キャンプで回復しました。資源はそのままです。'));
+  engine.on('downed',()=>this.toast('体力切れ。手持ち資源の30%（端数切り捨て）をその場に落としました。近づいて回収できます。'));
   engine.on('boss',()=>this.toast('遺跡の守護機を倒した！','success'));
   engine.on('heal',()=>this.toast('体力を50回復しました','success'));
   engine.on('save-error',()=>this.toast('自動保存ができません。ブラウザの保存設定をご確認ください。'));

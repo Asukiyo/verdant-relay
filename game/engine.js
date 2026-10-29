@@ -154,8 +154,8 @@ export class GameEngine{
    const targets=near.filter(e=>!e.dead&&distance(e,p)<this.attackRange).sort((a,b)=>(a.type==='bear'?0:1)-(b.type==='bear'?0:1)||distance(a,p)-distance(b,p));
    if(targets.length){p.swing=.28;p.attackCooldown=this.fever>0?.2:.34;const target=targets[0];p.angle=Math.atan2(target.x-p.x,target.z-p.z);this.emit('swing',{});for(const e of targets.slice(0,this.upgrades.reach+2))this.hitEntity(e,this.attack);}
   }
-  if(p.hp<=0){p.x=-.8;p.z=1.5;p.hp=this.maxHP;p.invincible=4;this.path=[];this.unlocking=null;p.lastCombat=this.time;this.emit('downed',{});}
-  if(this.time-p.lastCombat>7&&p.hp<this.maxHP){p.hp=Math.min(this.maxHP,p.hp+dt*(this.buildings.camp?6:2));}
+  if(p.hp<=0){this.dropDeathResources?.();p.x=-.8;p.z=1.5;p.hp=this.maxHP;p.invincible=4;this.path=[];this.unlocking=null;p.lastCombat=this.time;this.emit('downed',{});this.save();}
+  if(this.time-p.lastCombat>7&&p.hp<this.maxHP){p.hp=Math.min(this.maxHP,p.hp+dt*(this.buildings.camp&&this.isFacilityOperational?.('building:camp')!==false?6:2));}
   this.updateLoot(dt);this.updateEffects(dt);this.updateBuildings(dt,near);this.updateExpansion(dt);
   this.saveClock+=dt;if(this.saveClock>=4){this.saveClock=0;this.save();}
  }
