@@ -3,12 +3,12 @@ import {BeamRenderer} from './beam-renderer.js';
 import {box,cyl,ell} from './models-3d.js';
 import {WEAPONS} from './siege-engine.js';
 import {distance} from './config.js';
-import {animateEnemy} from './enemy-models.js';
+import {animateEnemy} from './enemy-sprites.js';
 
 export class SiegeRenderer extends BeamRenderer{
  constructor(...args){super(...args);this.siegeModels=new Map();this.shellModels=[];this.cacheModels=new Map();this.enemyShellModels=[];this.attackWarningPool=[];this.impactPool=[];}
  beforeRender(dt){super.beforeRender(dt);const e=this.engine;
-  for(const enemy of e.entities){const m=this.actors.get(enemy.id);if(m&&enemy.machineKind&&!enemy.dead)animateEnemy(m,enemy,e.time);}
+  for(const enemy of e.entities){const m=this.actors.get(enemy.id);if(m&&enemy.machineKind)animateEnemy(m,enemy,e.time);}
   // The base warning renderer still handles charges; specials show their real footprint.
   const threats=e.entities.filter(e=>!e.dead&&e.intent);for(let i=0;i<threats.length;i++)if(threats[i].enemyAttack&&this.dangerPool[i])this.dangerPool[i].visible=false;
   const warnings=[...e.entities.filter(e=>!e.dead&&e.enemyAttack&&!e.enemyAttack.fired).map(e=>e.enemyAttack),...(e.enemyShells||[]).map(a=>({...a,move:'shell',angle:0,time:a.duration-a.age,windup:a.duration}))];

@@ -4,8 +4,11 @@ import{GameInput}from'./input.js';
 import{GrowthUI as GameUI}from'./growth-ui.js';
 import{GameAudio}from'./audio.js';
 import{registerGameTools}from'./webmcp.js';
+import{preloadEnemySprites}from'./enemy-sprites.js';
 
 try{
+ const loading=document.getElementById('load-error');loading.hidden=false;loading.textContent='敵機の画像を読み込み中…';
+ await preloadEnemySprites();loading.hidden=true;
  let storage=null;try{storage=localStorage;}catch{/* Device storage is optional. */}
  const engine=new GameEngine({storage}),canvas=document.getElementById('world'),renderer=new WorldRenderer(canvas,engine),audio=new GameAudio(engine),ui=new GameUI(engine,renderer,audio);
  const input=new GameInput(canvas,engine,renderer,{onKey:(k,e)=>ui.key(k,e),onInteract:()=>audio.unlock()});ui.setInput(input);
@@ -18,4 +21,4 @@ try{
  registerGameTools(engine,ui);
  if(!storage)ui.toast('このブラウザでは自動保存が使えません。ページを閉じると進行状況が消えます。');
  requestAnimationFrame(frame);
-}catch(error){document.getElementById('load-error').textContent='3D画面を開始できませんでした。ブラウザのハードウェアアクセラレーションを有効にして、再読み込みしてください。';document.getElementById('load-error').hidden=false;console.error('Game initialization failed:',error);}
+}catch(error){document.getElementById('load-error').textContent=error.message==='enemy-sprite-load'?'敵機の画像を読み込めませんでした。通信状況を確認して、再読み込みしてください。':'3D画面を開始できませんでした。ブラウザのハードウェアアクセラレーションを有効にして、再読み込みしてください。';document.getElementById('load-error').hidden=false;console.error('Game initialization failed:',error);}
